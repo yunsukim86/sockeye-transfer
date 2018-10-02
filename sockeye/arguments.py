@@ -411,6 +411,7 @@ def add_training_io_args(params):
     add_vocab_args(params)
     add_training_output_args(params)
     add_monitoring_args(params)
+    add_noise_data_args(params)
 
 
 def add_bucketing_args(params):
@@ -1293,3 +1294,25 @@ def add_replace_embedding_args(params):
     params.add_argument('--vocab-file', '-v', type=str,
                         help='Output file to write a new vocabulary to.')
 
+
+def add_noise_data_args(params):
+    params.add_argument('--source-noise-train', required=False, action="store_true",
+                        help='Add artificial noise to source part of the training data.')
+    params.add_argument('--source-noise-validation', required=False, action="store_true",
+                        help='Add artificial noise to source part of the validation data.')
+    params.add_argument('--source-noise-permutation', required=False, type=int, default=0,
+                        help='Maximum distance allowed for permutation of a source sentence.\n'
+                        'Only effective when --source-noise-train or --source-noise-validation\n'
+                        'is turned on.')
+    params.add_argument('--source-noise-deletion', required=False, type=float, default=0.0,
+                        help='Probability of deleting words from a source sentence.\n'
+                        'Only effective when --source-noise-train or --source-noise-validation\n'
+                        'is turned on.')
+    params.add_argument('--source-noise-insertion', required=False, type=float, default=0.0,
+                        help='Probability of inserting words to a source sentence.\n'
+                        'Only effective when --source-noise-train or --source-noise-validation\n'
+                        'is turned on.')
+    params.add_argument('--source-noise-insertion-vocab', required=False, type=int, default=0,
+                        help='Vocabulary size of top frequent words for --source-noise-insertion.\n'
+                        'Only effective when --source-noise-train or --source-noise-validation\n'
+                        'is turned on and --source-noise-insertion has a nonzero value.')
