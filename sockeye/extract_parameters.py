@@ -109,8 +109,14 @@ def extract_parameters(args: argparse.Namespace):
 
     if len(ext_params) > 0:
         utils.check_condition(args.output is not None, "An output filename must be specified. (Use --output)")
-        logger.info("Writing extracted parameters to '%s'", args.output)
-        np.savez_compressed(args.output, **ext_params)
+        if args.text_output:
+            for name in args.names:
+                logger.info("Writing extracted parameters to '%s'", args.output + '.' + name)
+                np.savetxt(args.output + '.' + name, ext_params[name], fmt='%1.7f')
+        else:
+            logger.info("Writing extracted parameters to '%s'", args.output)
+            np.savez_compressed(args.output, **ext_params)
+
 
 
 if __name__ == "__main__":

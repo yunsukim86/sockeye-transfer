@@ -280,6 +280,9 @@ def add_extract_args(params):
     extract_params.add_argument('--output', '-o',
                                 type=str,
                                 help="File to write extracted parameters to (in .npz format).")
+    extract_params.add_argument('--text-output', '-t',
+                                action='store_true',
+                                help='Extracted parameters are stored in plain text files.')
 
 
 def add_rerank_args(params):
