@@ -24,6 +24,7 @@ sockeye/model.py
 sockeye/optimizers.py
 sockeye/output_handler.py
 sockeye/prepare_data.py
+sockeye/replace_embedding.py
 sockeye/rnn.py
 sockeye/rnn_attention.py
 sockeye/train.py

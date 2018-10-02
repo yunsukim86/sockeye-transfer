@@ -1281,3 +1281,15 @@ def add_init_embedding_args(params):
                         help='File to write initialized parameters to.')
     params.add_argument('--encoding', '-c', type=str, default=C.VOCAB_ENCODING,
                         help='Open input vocabularies with specified encoding. Default: %(default)s.')
+
+
+def add_replace_embedding_args(params):
+    params.add_argument('--embed-file', '-e', type=str, required=True,
+                        help='Pre-trained (source) embedding file in .vec format.')
+    params.add_argument('--params', '-p', type=str, required=True,
+                        help='Sockeye model parameter file with which the (source) embedding will be replaced.')
+    params.add_argument('--output-params', '-o', type=str,
+                        help='Output file to write new model parameters to.')
+    params.add_argument('--vocab-file', '-v', type=str,
+                        help='Output file to write a new vocabulary to.')
+
