@@ -434,7 +434,6 @@ def add_bucketing_args(params):
 def add_prepare_data_cli_args(params):
     params = params.add_argument_group("Data preparation.")
     add_training_data_args(params, required=True)
-    add_noise_data_args(params)
     add_vocab_args(params)
     add_bucketing_args(params)
 
