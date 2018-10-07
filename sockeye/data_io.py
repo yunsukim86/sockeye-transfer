@@ -662,6 +662,9 @@ def get_validation_data_iter(data_loader: RawParallelDatasetLoader,
                                        validation_data_statistics.num_sents_per_bucket).fill_up(bucket_batch_sizes,
                                                                                                 fill_up)
 
+    if noise_model:
+        logger.info("Noise will be applied to source side of the validation data.")
+
     return ParallelSampleIter(data=validation_data,
                               buckets=buckets,
                               batch_size=batch_size,
@@ -780,9 +783,9 @@ def get_training_data_iters(sources: List[str],
                             bucket_width: int,
                             source_noise_train: bool,
                             source_noise_validation: bool,
-                            noise_config: NoiseModelConfig) -> Tuple['BaseParallelSampleIter',
-                                                                     'BaseParallelSampleIter',
-                                                                     'DataConfig', 'DataInfo']:
+                            noise_config: noise.NoiseModelConfig) -> Tuple['BaseParallelSampleIter',
+                                                                           'BaseParallelSampleIter',
+                                                                           'DataConfig', 'DataInfo']:
     """
     Returns data iterators for training and validation data.
 
@@ -852,6 +855,9 @@ def get_training_data_iters(sources: List[str],
                              max_seq_len_target=max_seq_len_target,
                              num_source_factors=len(sources),
                              source_with_eos=True)
+
+    if source_noise_train:
+        logger.info("Noise will be applied to source side of the training data.")
 
     train_iter = ParallelSampleIter(data=training_data,
                                     buckets=buckets,
@@ -1457,7 +1463,7 @@ class ShardedParallelSampleIter(BaseParallelSampleIter):
                  label_name=C.TARGET_LABEL_NAME,
                  num_factors: int = 1,
                  dtype='float32',
-                 noise_model: noise.NoiseModel) -> None:
+                 noise_model: noise.NoiseModel = None) -> None:
         super().__init__(buckets=buckets, batch_size=batch_size, bucket_batch_sizes=bucket_batch_sizes,
                          source_data_name=source_data_name, target_data_name=target_data_name,
                          label_name=label_name, num_factors=num_factors, dtype=dtype)
@@ -1551,7 +1557,7 @@ class ParallelSampleIter(BaseParallelSampleIter):
                  label_name=C.TARGET_LABEL_NAME,
                  num_factors: int = 1,
                  dtype='float32',
-                 noise_model: noise.NoiseModel) -> None:
+                 noise_model: noise.NoiseModel = None) -> None:
         super().__init__(buckets=buckets, batch_size=batch_size, bucket_batch_sizes=bucket_batch_sizes,
                          source_data_name=source_data_name, target_data_name=target_data_name,
                          label_name=label_name, num_factors=num_factors, dtype=dtype)
