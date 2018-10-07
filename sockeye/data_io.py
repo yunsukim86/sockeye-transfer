@@ -15,8 +15,10 @@
 Implements data iterators and I/O related functions for sequence-to-sequence models.
 """
 import bisect
+import copy
 import logging
 import math
+import numpy as np
 import os
 import pickle
 import random
@@ -30,6 +32,7 @@ import numpy as np
 
 from . import config
 from . import constants as C
+from . import noise
 from . import vocab
 from .utils import check_condition, smart_open, get_tokens, OnlineMeanAndVariance
 
@@ -631,7 +634,8 @@ def get_validation_data_iter(data_loader: RawParallelDatasetLoader,
                              max_seq_len_source: int,
                              max_seq_len_target: int,
                              batch_size: int,
-                             fill_up: str) -> 'ParallelSampleIter':
+                             fill_up: str,
+                             noise_model: noise.NoiseModel) -> 'ParallelSampleIter':
     """
     Returns a ParallelSampleIter for the validation data.
     """
@@ -662,7 +666,8 @@ def get_validation_data_iter(data_loader: RawParallelDatasetLoader,
                               buckets=buckets,
                               batch_size=batch_size,
                               bucket_batch_sizes=bucket_batch_sizes,
-                              num_factors=len(validation_sources))
+                              num_factors=len(validation_sources),
+                              noise_model=noise_model)
 
 
 def get_prepared_data_iters(prepared_data_dir: str,
@@ -672,9 +677,12 @@ def get_prepared_data_iters(prepared_data_dir: str,
                             batch_size: int,
                             batch_by_words: bool,
                             batch_num_devices: int,
-                            fill_up: str) -> Tuple['BaseParallelSampleIter',
-                                                   'BaseParallelSampleIter',
-                                                   'DataConfig', List[vocab.Vocab], vocab.Vocab]:
+                            fill_up: str,
+                            source_noise_train: bool,
+                            source_noise_validation: bool,
+                            noise_config: noise.NoiseModelConfig) -> Tuple['BaseParallelSampleIter',
+                                                                           'BaseParallelSampleIter',
+                                                                           'DataConfig', List[vocab.Vocab], vocab.Vocab]:
     logger.info("===============================")
     logger.info("Creating training data iterator")
     logger.info("===============================")
@@ -723,12 +731,15 @@ def get_prepared_data_iters(prepared_data_dir: str,
 
     config_data.data_statistics.log(bucket_batch_sizes)
 
+    noise_model = noise.get_noise_model(noise_config) if noise_config else None
+
     train_iter = ShardedParallelSampleIter(shard_fnames,
                                            buckets,
                                            batch_size,
                                            bucket_batch_sizes,
                                            fill_up,
-                                           num_factors=len(data_info.sources))
+                                           num_factors=len(data_info.sources),
+                                           noise_model=noise_model if source_noise_train else None)
 
     data_loader = RawParallelDatasetLoader(buckets=buckets,
                                            eos_id=target_vocab[C.EOS_SYMBOL],
@@ -744,7 +755,8 @@ def get_prepared_data_iters(prepared_data_dir: str,
                                                max_seq_len_source=max_seq_len_source,
                                                max_seq_len_target=max_seq_len_target,
                                                batch_size=batch_size,
-                                               fill_up=fill_up)
+                                               fill_up=fill_up,
+                                               noise_model=noise_model if source_noise_validation else None)
 
     return train_iter, validation_iter, config_data, source_vocabs, target_vocab
 
@@ -765,9 +777,12 @@ def get_training_data_iters(sources: List[str],
                             max_seq_len_source: int,
                             max_seq_len_target: int,
                             bucketing: bool,
-                            bucket_width: int) -> Tuple['BaseParallelSampleIter',
-                                                        'BaseParallelSampleIter',
-                                                        'DataConfig', 'DataInfo']:
+                            bucket_width: int,
+                            source_noise_train: bool,
+                            source_noise_validation: bool,
+                            noise_config: NoiseModelConfig) -> Tuple['BaseParallelSampleIter',
+                                                                     'BaseParallelSampleIter',
+                                                                     'DataConfig', 'DataInfo']:
     """
     Returns data iterators for training and validation data.
 
@@ -823,6 +838,8 @@ def get_training_data_iters(sources: List[str],
     training_data = data_loader.load(sources_sentences, target_sentences,
                                      data_statistics.num_sents_per_bucket).fill_up(bucket_batch_sizes, fill_up)
 
+    noise_model = noise.get_noise_model(noise_config) if noise_config else None
+
     data_info = DataInfo(sources=sources,
                          target=target,
                          source_vocabs=source_vocab_paths,
@@ -840,7 +857,8 @@ def get_training_data_iters(sources: List[str],
                                     buckets=buckets,
                                     batch_size=batch_size,
                                     bucket_batch_sizes=bucket_batch_sizes,
-                                    num_factors=len(sources))
+                                    num_factors=len(sources),
+                                    noise_model=noise_model if source_noise_train else None)
 
     validation_iter = get_validation_data_iter(data_loader=data_loader,
                                                validation_sources=validation_sources,
@@ -852,7 +870,8 @@ def get_training_data_iters(sources: List[str],
                                                max_seq_len_source=max_seq_len_source,
                                                max_seq_len_target=max_seq_len_target,
                                                batch_size=batch_size,
-                                               fill_up=fill_up)
+                                               fill_up=fill_up,
+                                               noise_model=noise_model if source_noise_validation else None)
 
     return train_iter, validation_iter, config_data, data_info
 
@@ -1437,7 +1456,8 @@ class ShardedParallelSampleIter(BaseParallelSampleIter):
                  target_data_name=C.TARGET_NAME,
                  label_name=C.TARGET_LABEL_NAME,
                  num_factors: int = 1,
-                 dtype='float32') -> None:
+                 dtype='float32',
+                 noise_model: noise.NoiseModel) -> None:
         super().__init__(buckets=buckets, batch_size=batch_size, bucket_batch_sizes=bucket_batch_sizes,
                          source_data_name=source_data_name, target_data_name=target_data_name,
                          label_name=label_name, num_factors=num_factors, dtype=dtype)
@@ -1445,6 +1465,7 @@ class ShardedParallelSampleIter(BaseParallelSampleIter):
         self.shards_fnames = list(shards_fnames)
         self.shard_index = -1
         self.fill_up = fill_up
+        self.noise_model = noise_model
 
         self.reset()
 
@@ -1460,7 +1481,8 @@ class ShardedParallelSampleIter(BaseParallelSampleIter):
                                              bucket_batch_sizes=self.bucket_batch_sizes,
                                              source_data_name=self.source_data_name,
                                              target_data_name=self.target_data_name,
-                                             num_factors=self.num_factors)
+                                             num_factors=self.num_factors,
+                                             noise_model=self.noise_model)
 
     def reset(self):
         if len(self.shards_fnames) > 1:
@@ -1528,13 +1550,15 @@ class ParallelSampleIter(BaseParallelSampleIter):
                  target_data_name=C.TARGET_NAME,
                  label_name=C.TARGET_LABEL_NAME,
                  num_factors: int = 1,
-                 dtype='float32') -> None:
+                 dtype='float32',
+                 noise_model: noise.NoiseModel) -> None:
         super().__init__(buckets=buckets, batch_size=batch_size, bucket_batch_sizes=bucket_batch_sizes,
                          source_data_name=source_data_name, target_data_name=target_data_name,
                          label_name=label_name, num_factors=num_factors, dtype=dtype)
 
         # create independent lists to be shuffled
         self.data = ParallelDataSet(list(data.source), list(data.target), list(data.label))
+        self.noise_model = noise_model
 
         # create index tuples (buck_idx, batch_start_pos) into buckets. These will be shuffled.
         self.batch_indices = get_batch_indices(self.data, bucket_batch_sizes)
@@ -1568,6 +1592,10 @@ class ParallelSampleIter(BaseParallelSampleIter):
         """
         return self.curr_batch_index != len(self.batch_indices)
 
+    def apply_noise(self, sentences):
+        noisy_sentences = self.noise_model.apply_noise(sentences)
+        return noisy_sentences
+
     def next(self) -> mx.io.DataBatch:
         """
         Returns the next batch from the data iterator.
@@ -1580,6 +1608,8 @@ class ParallelSampleIter(BaseParallelSampleIter):
 
         batch_size = self.bucket_batch_sizes[i].batch_size
         source = self.data.source[i][j:j + batch_size]
+        if self.noise_model:
+            source = self.apply_noise(copy.copy(source))
         target = self.data.target[i][j:j + batch_size]
         data = [source, target]
         label = [self.data.label[i][j:j + batch_size]]
