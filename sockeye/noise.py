@@ -52,6 +52,7 @@ class NoiseModel:
         sentences = sentences.asnumpy()
         for b in list(range(0, sentences.shape[0])):
             sentence = sentences[b, :, 0]
+            sentence = np.take(sentence, sentence.nonzero())[0]  # Temporarily remove paddings
             sentence = self._deletion(sentence)
             sentence = self._permutation(sentence)
             sentence = self._insertion(sentence, max_sequence_length)
@@ -71,24 +72,26 @@ class NoiseModel:
         offset = np.random.randint(0, self.config.permutation + 1, size=length)
         indices = np.arange(length) + offset
         sentence = np.take(sentence, np.argsort(indices))
-        sentence = np.take(sentence, sentence.nonzero())[0]
         return sentence
 
     def _deletion(self, sentence):
         length = sentence.shape[0]
-        keep_value = np.random.rand(length) > self.deletion
+        keep_value = np.random.rand(length) > self.config.deletion
         sentence = np.take(sentence, keep_value.nonzero())[0]
         return sentence
 
     def _insertion(self, sentence, max_sequence_length):
         length = sentence.shape[0]
-        insert_value = np.random.rand(length) <= self.insertion
+        if length == max_sequence_length:
+            return sentence
+
+        insert_value = np.random.rand(length) <= self.config.insertion
         offset = 0
         for i in range(length):
             if insert_value[i]:
                 sentence = np.insert(sentence,
                                      i + offset,
-                                     np.random.randint(0, self.insertion_vocab) + len(C.VOCAB_SYMBOLS))
+                                     np.random.randint(0, self.config.insertion_vocab) + len(C.VOCAB_SYMBOLS))
                 offset += 1
                 if length + offset >= max_sequence_length:
                     break
