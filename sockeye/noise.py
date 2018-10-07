@@ -88,7 +88,7 @@ class NoiseModel:
             if insert_value[i]:
                 sentence = np.insert(sentence,
                                      i + offset,
-                                     np.random.randint(0, self.insertion_vocab) + 4)
+                                     np.random.randint(0, self.insertion_vocab) + len(C.VOCAB_SYMBOLS))
                 offset += 1
                 if length + offset >= max_sequence_length:
                     break
