@@ -262,13 +262,12 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                   args.source_noise_insertion,
                                                   args.source_noise_insertion_vocab)
             noise_config.save(os.path.join(output_folder, C.NOISE_MODEL_CONFIG))
-        logger.info("Using noise model with: permutation = {}"
-                    "                        deletion = {}"
-                    "                        insertion = {}"
-                    "                        insertion_vocab = {}".format(noise_config.permutation,
-                                                                          noise_config.deletion,
-                                                                          noise_config.insertion,
-                                                                          noise_config.insertion_vocab))
+        logger.info("Using noise model with: permutation = {}, "
+                    "deletion = {}, insertion = {}, "
+                    "insertion_vocab = {}".format(noise_config.permutation,
+                                                  noise_config.deletion,
+                                                  noise_config.insertion,
+                                                  noise_config.insertion_vocab))
     else:
         noise_config = None
 

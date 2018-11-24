@@ -735,6 +735,8 @@ def get_prepared_data_iters(prepared_data_dir: str,
     config_data.data_statistics.log(bucket_batch_sizes)
 
     noise_model = noise.get_noise_model(noise_config) if noise_config else None
+    if source_noise_train:
+        logger.info("Noise will be applied to source side of the training data.")
 
     train_iter = ShardedParallelSampleIter(shard_fnames,
                                            buckets,
