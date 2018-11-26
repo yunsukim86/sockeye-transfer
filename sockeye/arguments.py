@@ -1316,3 +1316,7 @@ def add_noise_data_args(params):
                         help='Vocabulary size of top frequent words for --source-noise-insertion.\n'
                         'Only effective when --source-noise-train or --source-noise-validation\n'
                         'is turned on and --source-noise-insertion has a nonzero value.')
+    params.add_argument('--target-noise-train', required=False, action="store_true",
+                        help='Add artificial noise to target part of the training data.')
+    params.add_argument('--target-noise-validation', required=False, action="store_true",
+                        help='Add artificial noise to target part of the validation data.')

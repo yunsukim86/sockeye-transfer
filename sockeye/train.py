@@ -251,7 +251,7 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                      C.TRAINING_ARG_TARGET,
                                                      C.TRAINING_ARG_PREPARED_DATA)
 
-    if args.source_noise_train or args.source_noise_validation:
+    if args.source_noise_train or args.source_noise_validation or args.target_noise_train or args.target_noise_validation:
         if resume_training:
             noise_config_path = os.path.join(output_folder, C.NOISE_MODEL_CONFIG)
             noise_config = cast(noise.NoiseModelConfig, Config.load(noise_config_path))
@@ -288,6 +288,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
             fill_up=args.fill_up,
             source_noise_train=args.source_noise_train,
             source_noise_validation=args.source_noise_validation,
+            target_noise_train=args.target_noise_train,
+            target_noise_validation=args.target_noise_validation,
             noise_config=noise_config)
 
         check_condition(len(source_vocabs) == len(args.source_factors_num_embed) + 1,
@@ -373,6 +375,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
             bucket_width=args.bucket_width,
             source_noise_train=args.source_noise_train,
             source_noise_validation=args.source_noise_validation,
+            target_noise_train=args.target_noise_train,
+            target_noise_validation=args.target_noise_validation,
             noise_config=noise_config)
 
         data_info_fname = os.path.join(output_folder, C.DATA_INFO)
