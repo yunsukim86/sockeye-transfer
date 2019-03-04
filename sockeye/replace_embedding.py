@@ -35,12 +35,16 @@ def convert_vocab(vocab: List[str]) -> Dict[int, str]:
 
 
 def convert_weight(weight: np.ndarray,
-                   org_params: Dict[str, mx.nd.NDArray]) -> mx.nd.NDArray:
+                   org_params: Dict[str, mx.nd.NDArray],
+                   side: str) -> mx.nd.NDArray:
     """
     Convert a numpy embedding matrix to MXNet NDArray.
     Add embeddings for Sockeye special tokens from org_params.
     """
-    org_np_ndarray = org_params['source_embed_weight'].asnumpy()
+    if side == 'source':
+        org_np_ndarray = org_params['source_embed_weight'].asnumpy()
+    elif side == 'target':
+        org_np_ndarray = org_params['target_embed_weight'].asnumpy()
     new_np_ndarray = np.concatenate((org_np_ndarray[:3], weight))
     new_mx_ndarray = mx.nd.array(new_np_ndarray)
     return new_mx_ndarray
@@ -51,9 +55,19 @@ def replace_embeddings(args: argparse.Namespace):
 
     embed_basename = os.path.basename(args.embed_file)
     if not args.output_params:
-        output_params = args.params + ".source_embed_weight-" + embed_basename
+        if args.side == 'source':
+            output_params = args.params + ".source_embed_weight-" + embed_basename
+        elif args.side == 'target':
+            output_params = args.params + ".target_embed_weight-" + embed_basename
+    else:
+        output_params = args.output_params
     if not args.vocab_file:
-        vocab_file = "vocab.src.0." + embed_basename + ".json"
+        if args.side == 'source':
+            vocab_file = "vocab.src.0." + embed_basename + ".json"
+        elif args.side == 'target':
+            vocab_file = "vocab.trg.0." + embed_basename + ".json"
+    else:
+        vocab_file = args.vocab_file
 
     vocab, weight = load_vec(args.embed_file)
 
@@ -61,8 +75,12 @@ def replace_embeddings(args: argparse.Namespace):
     vocab_to_json(new_vocab, vocab_file)
 
     arg_params, aux_params = utils.load_params(args.params)
-    new_weight = convert_weight(weight, arg_params)
-    arg_params['source_embed_weight'] = new_weight
+    new_weight = convert_weight(weight, arg_params, args.side)
+    if args.side == 'source':
+        arg_params['source_embed_weight'] = new_weight
+    elif args.side == 'target':
+        arg_params['target_embed_weight'] = new_weight
+        arg_params['target_output_bias'] = mx.ndarray.zeros((len(vocab) + 3,))
     utils.save_params(arg_params, output_params, aux_params)
 
 

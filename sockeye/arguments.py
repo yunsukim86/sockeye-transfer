@@ -1286,9 +1286,11 @@ def add_init_embedding_args(params):
 
 def add_replace_embedding_args(params):
     params.add_argument('--embed-file', '-e', type=str, required=True,
-                        help='Pre-trained (source) embedding file in .vec format.')
+                        help='Pre-trained embedding file in .vec format.')
     params.add_argument('--params', '-p', type=str, required=True,
-                        help='Sockeye model parameter file with which the (source) embedding will be replaced.')
+                        help='Sockeye model parameter file with which the embedding will be replaced.')
+    params.add_argument('--side', '-s', type=str, default='source',
+                        help='Side of the embedding to be replaced (source|target).')
     params.add_argument('--output-params', '-o', type=str,
                         help='Output file to write new model parameters to.')
     params.add_argument('--vocab-file', '-v', type=str,
